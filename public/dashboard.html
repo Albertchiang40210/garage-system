@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>車庫小籠包 - 豪華營運數據中控台</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .card-main-food { background: #FFF7ED; border: 3px solid #EA580C; }
+        .card-dimsum { background: #F0FDF4; border: 3px solid #16A34A; }
+        .card-drink { background: #FAFAFF; border: 2px solid #8B5CF6; }
+        .card-soup { background: #F8FAFC; border: 4px double #1E3A8A; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans antialiased pb-12">
+
+    <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl animate-bounce">📊</span>
+                <div>
+                    <h1 class="text-xl font-black tracking-widest text-orange-400">車庫小籠包 POS 2.0</h1>
+                    <p class="text-xs text-slate-400 font-bold tracking-wide">營運數據雷達與對帳大腦</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2 bg-slate-800 p-2 rounded-xl border border-slate-700 shadow-inner">
+                <button id="tab-today" onclick="switchRange('today')" class="bg-orange-500 text-white text-xs font-black px-4 py-2 rounded-lg shadow transition-all cursor-pointer">☀️ 當日分析</button>
+                <button id="tab-month" onclick="switchRange('month')" class="text-slate-300 hover:text-white text-xs font-black px-4 py-2 rounded-lg transition-all cursor-pointer">📅 歷史月分查詢</button>
+                <div id="month-picker-group" class="hidden items-center gap-1 pl-2 border-l border-slate-600">
+                    <select id="select-year" class="bg-slate-900 text-white text-xs font-bold border border-slate-600 rounded px-2 py-1 focus:outline-none"></select>
+                    <span class="text-xs text-slate-400 font-bold">年</span>
+                    <select id="select-month" class="bg-slate-900 text-white text-xs font-bold border border-slate-600 rounded px-2 py-1 focus:outline-none">
+                        <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                        <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                        <option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                    </select>
+                    <button onclick="fetchRadarData()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-3 py-1 rounded shadow cursor-pointer">🔍 查詢</button>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <a href="inventory.html" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black px-3 py-2 rounded-xl shadow-md transition-all">
+                    📦 庫存管理後台
+                </a>
+                <a href="index.html" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-black px-3 py-2 rounded-xl shadow-md transition-all">
+                    🥟 前台點餐檯
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 mt-6 space-y-6">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl shadow-lg p-6 text-white border border-slate-700">
+                <p class="text-xs font-black tracking-widest text-slate-400 uppercase">💰 篩選範圍總營業額</p>
+                <h2 id="text-store-revenue" class="text-4xl font-extrabold tracking-tight mt-2 text-orange-400">$ 0</h2>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex justify-between items-center">
+                <div>
+                    <p class="text-xs font-black tracking-widest text-slate-400 uppercase">🥟 招牌小籠包銷量統計</p>
+                    <h2 id="text-xlb-count" class="text-3xl font-black text-slate-800 mt-2">0 顆</h2>
+                    <p id="text-xlb-plates" class="text-xs text-slate-500 font-medium mt-1">（獨立手動盤點項目）</p>
+                </div>
+                <div class="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-2xl shadow-inner">🥟</div>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">🎯 四大餐點線營收份額佔比分析</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" id="radar-cards-container"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="lg:col-span-2 space-y-3">
+                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest">📋 今日原始流水帳明細（防漏單查帳）</h2>
+                <div class="bg-pink-50 border border-pink-100 rounded-2xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-pink-100 text-pink-800 font-black text-xs tracking-wider border-b border-pink-200">
+                                    <th class="p-4">時間</th><th class="p-4">品名</th><th class="p-4 text-center">單價 × 數量</th><th class="p-4 text-right">小計營業額</th><th class="p-4 text-center">後台對帳鎖</th>
+                                </tr>
+                            </thead>
+                            <tbody id="raw-logs-tbody" class="divide-y divide-pink-100 text-pink-900 font-bold"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest">🛠️ 店長實體菜單價格調整櫃檯</h2>
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4" id="product-manager-list"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        let currentRange = 'today';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initYearPicker();
+            fetchRadarData();
+            loadRawLogs();
+            loadManagerProducts();
+        });
+
+        function initYearPicker() {
+            const yearSelect = document.getElementById('select-year');
+            const currentYear = new Date().getFullYear();
+            for(let y = currentYear; y >= currentYear - 2; y--) {
+                const opt = document.createElement('option'); opt.value = y; opt.textContent = y; yearSelect.appendChild(opt);
+            }
+            document.getElementById('select-month').value = new Date().getMonth() + 1;
+        }
+
+        function switchRange(range) {
+            currentRange = range;
+            document.getElementById('month-picker-group').className = (range === 'today') ? "hidden" : "flex items-center gap-1 pl-2 border-l border-slate-600";
+            fetchRadarData();
+        }
+
+        function fetchRadarData() {
+            let url = `/api/reports/category-radar?range=${currentRange}`;
+            if (currentRange === 'month') {
+                url += `&year=${document.getElementById('select-year').value}&month=${document.getElementById('select-month').value}`;
+            }
+            fetch(url).then(res => res.json()).then(data => {
+                if (!data.success) return;
+                document.getElementById('text-store-revenue').textContent = `$ ${data.totalStoreRevenue.toLocaleString()}`;
+                document.getElementById('text-xlb-count').textContent = `${data.xlbTotalCount.toLocaleString()} 顆`;
+                document.getElementById('text-xlb-plates').textContent = data.xlbText;
+
+                const container = document.getElementById('radar-cards-container');
+                container.innerHTML = '';
+                const categoryStyles = {
+                    '主食小吃': { class: 'card-main-food', icon: '🍛', textColor: 'text-orange-700', badgeBg: 'bg-orange-200/60', badgeText: 'text-orange-800' },
+                    '點心包子': { class: 'card-dimsum', icon: '🥟', textColor: 'text-green-700', badgeBg: 'bg-green-200/60', badgeText: 'text-green-800' },
+                    '養生飲品': { class: 'card-drink', icon: '🥤', textColor: 'text-purple-700', badgeBg: 'bg-purple-200/60', badgeText: 'text-purple-800' },
+                    '傳統湯品': { class: 'card-soup', icon: '🥣', textColor: 'text-blue-950', badgeBg: 'bg-blue-100', badgeText: 'text-blue-900' }
+                };
+                ['主食小吃', '點心包子', '養生飲品', '傳統湯品'].forEach(catName => {
+                    const catData = data.report[catName] || { categoryRevenue: 0, storeShare: 0, products: [] };
+                    const style = categoryStyles[catName];
+                    const card = document.createElement('div');
+                    card.className = `${style.class} rounded-2xl p-4 flex flex-col justify-between space-y-4 transition-all hover:scale-[1.02]`;
+                    let productsHtml = '';
+                    if (catData.products.length === 0) { productsHtml = `<p class="text-xs text-slate-400 font-medium py-6 text-center">暫無銷量</p>`; }
+                    else {
+                        catData.products.forEach(p => {
+                            productsHtml += `
+                                <div class="flex justify-between items-center text-xs py-1.5 border-b border-dashed border-slate-300/40 last:border-0">
+                                    <div><p class="font-extrabold text-slate-800">${p.name} ${p.badge ? `<span class="text-[9px] font-black px-1 rounded ${style.badgeBg} ${style.badgeText}">${p.badge}</span>`:''}</p>
+                                    <p class="text-[10px] text-slate-400 font-bold">銷量: ${p.qty} | 份額: ${p.lineShare}%</p></div>
+                                    <span class="font-black text-slate-900">$${p.revenue}</span>
+                                </div>`;
+                        });
+                    }
+                    card.innerHTML = `<div><div class="flex justify-between items-start border-b border-slate-300/40 pb-2"><h3 class="font-black text-sm ${style.textColor}">${style.icon} ${catName}</h3><span class="text-xs font-black px-2 py-0.5 rounded-lg bg-white/80 border text-slate-800">$${catData.categoryRevenue}</span></div><div class="mt-2 space-y-0.5">${productsHtml}</div></div>`;
+                    container.appendChild(card);
+                });
+            });
+        }
+
+        function loadRawLogs() {
+            fetch('/api/reports/today-raw-logs').then(res => res.json()).then(logs => {
+                const tbody = document.getElementById('raw-logs-tbody'); tbody.innerHTML = '';
+                if (!logs || logs.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-pink-400 text-xs font-medium">暫無點餐流水帳數據。</td></tr>`; return; }
+                logs.forEach(log => {
+                    const timeStr = new Date(log.created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+                    const tr = document.createElement('tr'); tr.className = "hover:bg-pink-100/40 border-b border-pink-100 last:border-0";
+                    tr.innerHTML = `<td class="p-4 text-xs text-pink-500">${timeStr}</td><td class="p-4 font-black text-slate-800">${log.product_name}</td><td class="p-4 text-center text-slate-500 font-bold">$${log.price} × <span class="text-pink-600 font-black text-sm">${log.quantity}</span></td><td class="p-4 text-right font-black text-slate-900 text-base">$ ${log.total_revenue}</td><td class="p-4 text-center"><button onclick="voidSale(${log.id})" class="text-[11px] bg-white text-red-500 border border-red-200 px-2.5 py-1 rounded-lg font-black tracking-wider shadow-sm cursor-pointer">作廢</button></td>`;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+
+        function voidSale(id) {
+            if (!confirm('⚠️ 確定要作廢這筆紀錄嗎？連動商品成品庫存將會自動返還歸倉！')) return;
+            fetch(`/api/sales/${id}/void`, { method: 'PUT' }).then(() => { fetchRadarData(); loadRawLogs(); });
+        }
+
+        function loadManagerProducts() {
+            fetch('/api/products').then(res => res.json()).then(products => {
+                const container = document.getElementById('product-manager-list'); container.innerHTML = '';
+                products.forEach(p => {
+                    const div = document.createElement('div'); div.className = "flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-200 shadow-inner";
+                    div.innerHTML = `<span class="text-xs font-extrabold text-slate-700 tracking-wide">${p.name}</span><div class="flex items-center gap-1 text-xs"><span class="font-bold text-slate-400">$</span><input type="number" value="${p.price}" onchange="updatePrice(${p.id}, this.value)" class="w-14 bg-white border border-slate-300 rounded px-1 py-0.5 text-center font-black text-slate-800 focus:outline-none"><span class="text-slate-400 font-bold">元</span></div>`;
+                    container.appendChild(div);
+                });
+            });
+        }
+
+        function updatePrice(id, newPrice) { fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ price: parseInt(newPrice) }) }); }
+    </script>
+</body>
+</html>
