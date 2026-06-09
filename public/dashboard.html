@@ -60,17 +60,24 @@
         <!-- 區塊三：智慧分析雙欄區 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            <!-- 明日 AI 智慧備料建議 -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
+            <!-- 🕒 今日營業黃金時段熱流分析 -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3 flex flex-col h-full">
                 <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                     <div class="flex items-center gap-1.5">
-                        <span class="text-base">🧠</span>
-                        <h3 class="font-black text-xs text-slate-700">明日 AI 智慧備料建議</h3>
+                        <span class="text-base">🕒</span>
+                        <h3 class="font-black text-xs text-slate-700">今日營業黃金時段熱流分析</h3>
                     </div>
-                    <span class="text-[9px] bg-orange-100 text-orange-600 font-extrabold px-1.5 py-0.5 rounded">FastAPI 核心</span>
+                    <span class="text-[9px] bg-indigo-100 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded">FastAPI 時流大腦</span>
                 </div>
-                <div id="ai-inventory-container" class="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                    <p class="text-xs text-slate-400 text-center py-4">正在計算庫存水位...</p>
+                
+                <!-- AI 時段溫馨提示 -->
+                <div id="hourly-insight-box" class="p-3 bg-indigo-50 rounded-xl border border-indigo-100 text-xs text-indigo-800 font-bold">
+                    正在觀測今日客流能量場...
+                </div>
+                
+                <!-- 營業時段能量條容器 -->
+                <div id="hourly-timeline-container" class="space-y-3 overflow-y-auto max-h-[300px] pr-1 flex-1">
+                    <p class="text-xs text-slate-400 text-center py-4">正在分析交易時段能量...</p>
                 </div>
             </div>
 
@@ -82,8 +89,8 @@
                         <h3 class="font-black text-xs text-slate-700">全店熱銷爆款排行榜</h3>
                     </div>
                     <div class="flex gap-1">
-                        <button onclick="loadRanking('all')" id="btn-rank-all" class="text-[10px] bg-slate-900 text-white font-bold px-2 py-0.5 rounded">累計</button>
-                        <button onclick="loadRanking('today')" id="btn-rank-today" class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded">今天</button>
+                        <button onclick="loadRanking('all')" id="btn-rank-all" class="text-[10px] bg-slate-900 text-white font-bold px-2 py-0.5 rounded cursor-pointer">累計(年報表)</button>
+                        <button onclick="loadRanking('today')" id="btn-rank-today" class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded cursor-pointer">今天</button>
                     </div>
                 </div>
                 <div id="ai-ranking-container" class="space-y-3 max-h-[300px] overflow-y-auto pr-1">
@@ -91,6 +98,35 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- 📊 全新重磅加蓋：歷史營業趨勢大報表 (月報表 / 年報表數據中心) -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-base">📊</span>
+                    <h3 class="font-black text-xs text-slate-700">歷史營業趨勢大報表 (近30天月報表中心)</h3>
+                </div>
+                <span class="text-[9px] bg-amber-100 text-amber-700 font-extrabold px-1.5 py-0.5 rounded">AI 大數據對帳</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 font-black border-b border-slate-100">
+                            <th class="py-2.5 px-3">營業日期 (年/月/日)</th>
+                            <th class="py-2.5 px-3">星期</th>
+                            <th class="py-2.5 px-3">單日狂賣總數</th>
+                            <th class="py-2.5 px-3 text-right text-orange-600">單日營業總額</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trend-report-table" class="divide-y divide-slate-100 font-bold text-slate-700">
+                        <tr>
+                            <td colspan="4" class="text-center py-6 text-slate-400">正在統計歷史月報表數據...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <!-- 區塊四：今日營業原始流水帳 -->
@@ -134,8 +170,9 @@
             loadPriceManagement();
             loadTodayRawLogs();
             loadAiInsights();
-            loadAiPredictions();
+            loadHourlyHotspot(); // 🕒 載入黃金時段
             loadRanking('all');
+            setTimeout(loadTrendData, 1000); // 📊 載入歷史月/年報表清單
         });
 
         function togglePricePanel() {
@@ -194,13 +231,13 @@
                 if (data.success) {
                     alert(`🎉 ${name} 單價已改為 $${newPrice} 元！`);
                     loadPriceManagement();
-                    loadAiPredictions();
+                    loadHourlyHotspot(); 
                     loadRanking('all');
+                    loadTrendData();
                 }
             });
         }
 
-        // [Express] 載入流水帳
         function loadTodayRawLogs() {
             const tbody = document.getElementById('raw-logs-tbody');
             fetch(`${EXPRESS_URL}/api/reports/today-raw-logs`)
@@ -239,8 +276,9 @@
                 .then(data => {
                     if (data.success) {
                         loadTodayRawLogs();
-                        loadAiPredictions();
+                        loadHourlyHotspot(); 
                         loadRanking('all');
+                        loadTrendData();
                     }
                 });
         }
@@ -260,51 +298,65 @@
                 });
         }
 
-        function loadAiPredictions() {
-            const container = document.getElementById('ai-inventory-container');
-            fetch(`${FASTAPI_URL}/inventory-prediction`)
-                .then(res => res.json())
-                .then(res => {
-                    if (!res.success) return;
-                    container.innerHTML = '';
-                    res.data.forEach(item => {
-                        let alertColor = "bg-green-50 border-green-100 text-green-700";
-                        let badgeColor = "bg-green-100 text-green-800";
-                        if (item.alert_level === "CRITICAL") {
-                            alertColor = "bg-red-50 border-red-100 text-red-700";
-                            badgeColor = "bg-red-100 text-red-800";
-                        } else if (item.alert_level === "WARNING") {
-                            alertColor = "bg-amber-50 border-amber-100 text-amber-700";
-                            badgeColor = "bg-amber-100 text-amber-800";
-                        }
+        // 🕒 智慧時段熱流分析
+        function loadHourlyHotspot() {
+            const container = document.getElementById('hourly-timeline-container');
+            const insightBox = document.getElementById('hourly-insight-box');
+            
+            if (!container) return;
 
-                        const div = document.createElement('div');
-                        div.className = `p-2 rounded-lg border ${alertColor} flex justify-between items-center text-[11px]`;
-                        div.innerHTML = `
-                            <div>
-                                <div class="flex items-center gap-1">
-                                    <span class="font-black text-slate-800 text-xs">${item.name}</span>
-                                    <span class="text-[9px] px-1 rounded font-bold ${badgeColor}">${item.category}</span>
+            fetch(`${FASTAPI_URL}/hourly-hotspot`)
+                .then(res => res.json())
+                .then(resData => {
+                    if (resData.success) {
+                        if (insightBox) insightBox.innerText = resData.best_hour_insight;
+                        container.innerHTML = '';
+                        
+                        const businessHours = resData.data.filter(item => {
+                            const h = parseInt(item.hour_str.split(':')[0]);
+                            return h >= 5 && h <= 18;
+                        });
+                        
+                        const maxRevenue = Math.max(...businessHours.map(o => o.revenue), 1);
+                        
+                        businessHours.forEach(item => {
+                            const percentage = Math.min((item.revenue / maxRevenue) * 100, 100);
+                            
+                            let barColor = 'bg-slate-200';
+                            let bgTag = 'bg-slate-50 text-slate-400';
+                            if (item.revenue > 0) {
+                                barColor = percentage >= 80 ? 'bg-gradient-to-r from-amber-400 to-orange-500' : 'bg-indigo-500';
+                                bgTag = percentage >= 80 ? 'bg-amber-100 text-amber-900 font-black' : 'bg-indigo-50 text-indigo-700 font-bold';
+                            }
+
+                            const div = document.createElement('div');
+                            div.className = "flex items-center gap-2 text-[11px] font-bold";
+                            div.innerHTML = `
+                                <div class="w-10 text-slate-500 font-black">${item.hour_str}</div>
+                                <div class="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                    <div class="${barColor} h-full progress-bar rounded-full" style="width: ${percentage}%"></div>
                                 </div>
-                                <div class="text-[11px] font-black mt-0.5 text-indigo-600">${item.tips}</div>
-                            </div>
-                            <div class="text-right font-black">
-                                ${item.suggested_restock_qty > 0 ? `<span class="text-red-600">+${item.suggested_restock_qty}</span>` : `<span class="text-emerald-600">✓ 安全</span>`}
-                            </div>
-                        `;
-                        container.appendChild(div);
-                    });
-                });
+                                <div class="w-24 text-right">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] ${bgTag}">
+                                        ${item.revenue > 0 ? `$${item.revenue} (${item.orders}單)` : '無客流'}
+                                    </span>
+                                </div>
+                            `;
+                            container.appendChild(div);
+                        });
+                    }
+                })
+                .catch(err => console.error('🕒 時段後台連線失敗:', err));
         }
 
         function loadRanking(rangeType) {
             const container = document.getElementById('ai-ranking-container');
             if(rangeType === 'all') {
-                document.getElementById('btn-rank-all').className = "text-[10px] bg-slate-900 text-white font-bold px-2 py-0.5 rounded";
-                document.getElementById('btn-rank-today').className = "text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded";
+                document.getElementById('btn-rank-all').className = "text-[10px] bg-slate-900 text-white font-bold px-2 py-0.5 rounded cursor-pointer";
+                document.getElementById('btn-rank-today').className = "text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded cursor-pointer";
             } else {
-                document.getElementById('btn-rank-all').className = "text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded";
-                document.getElementById('btn-rank-today').className = "text-[10px] bg-slate-900 text-white font-bold px-2 py-0.5 rounded";
+                document.getElementById('btn-rank-all').className = "text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded cursor-pointer";
+                document.getElementById('btn-rank-today').className = "text-[10px] bg-slate-900 text-white font-bold px-2 py-0.5 rounded cursor-pointer";
             }
 
             fetch(`${FASTAPI_URL}/sales-ranking?range_type=${rangeType}`)
@@ -336,6 +388,52 @@
                         `;
                         container.appendChild(div);
                     });
+                });
+        }
+
+        // 📊 歷史月報表數據加載
+        function loadTrendData() {
+            const tableBody = document.getElementById('trend-report-table');
+            const insightBox = document.getElementById('ai-insight-text'); // ⚡ 修正：直連頂部橘色快報
+            
+            if (!tableBody) return;
+
+            fetch(`${FASTAPI_URL}/monthly-trend`)
+                .then(res => res.json())
+                .then(resData => {
+                    if (resData.success) {
+                        if (insightBox && resData.best_day_insight) {
+                            insightBox.innerText = resData.best_day_insight;
+                        }
+                        
+                        tableBody.innerHTML = '';
+                        
+                        if (!resData.data || resData.data.length === 0) {
+                            tableBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">📅 目前資料庫尚無歷史營業趨勢紀錄</td></tr>`;
+                            return;
+                        }
+                        
+                        // 倒序排列（讓最新的日期排在最上面）
+                        const sortedData = [...resData.data].reverse();
+                        
+                        sortedData.forEach(day => {
+                            const row = document.createElement('tr');
+                            row.className = "hover:bg-slate-50 border-b border-slate-100 transition-colors";
+                            row.innerHTML = `
+                                <td class="p-2.5 px-3 font-bold text-slate-800">${day.date}</td>
+                                <td class="p-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600">${day.weekday}</span></td>
+                                <td class="p-2.5 px-3 text-slate-600">${day.total_items_sold} 個</td>
+                                <td class="p-2.5 px-3 text-right font-black text-orange-600">$${day.total_revenue} 元</td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    } else {
+                        tableBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">報表加載失敗: ${resData.error}</td></tr>`;
+                    }
+                })
+                .catch(err => {
+                    console.error('撈取報表失敗:', err);
+                    tableBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">無法連線至報表伺服器</td></tr>`;
                 });
         }
     </script>

@@ -38,8 +38,6 @@ def get_inventory_prediction():
         cursor.execute("SELECT id, name, category, stock_qty, unit, min_stock FROM ingredients ORDER BY id ASC")
         ingredients = cursor.fetchall()
         
-        # 🛡️ 終極修正一：改用更標準安全的 DATE_SUB 語法，防止部分 MySQL 日期解析錯誤
-        # 🛡️ 同時加上 IFNULL 防護，確保就算完全沒有資料也不會回傳空值
         cursor.execute("""
             SELECT product_id, SUM(IFNULL(quantity_sold, 0)) as total_sold
             FROM daily_sales 
@@ -47,7 +45,6 @@ def get_inventory_prediction():
             GROUP BY product_id
         """)
         
-        # 🛡️ 終極修正二：加上 int(row['total_sold'] or 0)，萬一資料庫吐出 None 也絕對不會崩潰
         recent_sales = {}
         for row in cursor.fetchall():
             if row['product_id'] is not None:
@@ -80,6 +77,7 @@ def get_inventory_prediction():
                 alert_level = "WARNING"
                 suggested_restock = int((avg_daily_sold * 1.2) + 5)
             
+            # 🛡️ 這裡已經修正！拔除手滑的 @ 符號
             if suggested_restock > 0:
                 suggested_restock = ((suggested_restock // 5) + 1) * 5
                 
@@ -92,7 +90,6 @@ def get_inventory_prediction():
             })
         return {"success": True, "data": prediction_report}
     except Exception as e:
-        # 🛡️ 終極防線：即使後端資料庫真的出現非預期錯誤，也回傳乾淨的 JSON，防止前端轉圈死鎖
         return {"success": False, "error": f"Python 內部備料計算失敗: {str(e)}"}
 
 @app.get("/api/ai/sales-ranking")
@@ -100,18 +97,23 @@ def get_sales_ranking(range_type: str = Query("all")):
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
+        
         date_condition = "d.status != 'VOID'"
         if range_type == "today":
-            date_condition += " AND DATE(d.sale_date) = CURDATE()"
+            date_condition += " AND (DATE(d.created_at) = CURRENT_DATE() OR d.sale_date = CURRENT_DATE())"
         elif range_type == "month":
-            date_condition += " AND YEAR(d.sale_date) = YEAR(CURDATE()) AND MONTH(d.sale_date) = MONTH(CURDATE())"
+            date_condition += " AND YEAR(d.sale_date) = YEAR(CURRENT_DATE()) AND MONTH(d.sale_date) = MONTH(CURRENT_DATE())"
             
         query = f"""
-            SELECT i.name, i.category, SUM(d.quantity_sold) as total_qty, SUM(d.total_revenue) as total_revenue
-            FROM daily_sales d
-            JOIN ingredients i ON d.product_id = i.id
-            WHERE {date_condition}
-            GROUP BY i.id
+            SELECT 
+                i.name, 
+                i.category, 
+                SUM(IFNULL(d.quantity_sold, 0)) as total_qty, 
+                SUM(IFNULL(d.total_revenue, 0)) as total_revenue
+            FROM ingredients i
+            LEFT JOIN daily_sales d ON d.product_id = i.id AND {date_condition}
+            GROUP BY i.id, i.name, i.category
+            HAVING total_qty > 0
             ORDER BY total_qty DESC
         """
         cursor.execute(query)
@@ -136,7 +138,7 @@ def get_sales_ranking(range_type: str = Query("all")):
             })
         return {"success": True, "range_type": range_type, "total_store_revenue": total_store_revenue, "data": ranking_list}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "data": []}
 
 @app.get("/api/ai/monthly-trend")
 def get_monthly_trend():
@@ -161,14 +163,12 @@ def get_monthly_trend():
         for row in results:
             dt = row['sale_date']
             
-            # 🛡️ 核心安全防護：如果 MySQL 回傳字串格式，自動轉換為 Date 物件以供計算星期
             if isinstance(dt, str):
                 try:
                     dt = datetime.strptime(dt, "%Y-%m-%d").date()
                 except:
                     pass
             
-            # 確保不管是 datetime 還是 date 都能正常調用 strftime 與 weekday
             if isinstance(dt, (datetime, date)):
                 date_str = dt.strftime("%Y-%m-%d")
                 weekday_str = weekdays_cn[dt.weekday()]
@@ -190,3 +190,49 @@ def get_monthly_trend():
         return {"success": True, "total_tracked_days": len(trend_data), "best_day_insight": best_day_tips, "data": trend_data}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+@app.get("/api/ai/hourly-hotspot")
+def get_hourly_hotspot():
+    try:
+        conn = get_db_connection()
+        cursor = conn.connector.cursor(dictionary=True) if hasattr(conn, 'connector') else conn.cursor(dictionary=True)
+        
+        query = """
+            SELECT 
+                HOUR(created_at) as order_hour, 
+                COUNT(id) as total_orders, 
+                SUM(total_revenue) as hourly_revenue
+            FROM daily_sales
+            WHERE status != 'VOID' 
+              AND (DATE(created_at) = CURRENT_DATE() OR sale_date = CURRENT_DATE())
+            GROUP BY HOUR(created_at)
+            ORDER BY order_hour ASC
+        """
+        cursor.execute(query)
+        results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        hourly_data = {h: {"hour_str": f"{h:02d}:00", "orders": 0, "revenue": 0} for h in range(24)}
+        
+        has_data = False
+        for row in results:
+            h = row['order_hour']
+            if h in hourly_data:
+                hourly_data[h]["orders"] = int(row['total_orders'] or 0)
+                hourly_data[h]["revenue"] = int(row['hourly_revenue'] or 0)
+                if hourly_data[h]["revenue"] > 0:
+                    has_data = True
+                
+        final_list = list(hourly_data.values())
+        
+        if has_data:
+            active_hours = [item for item in final_list if item["revenue"] > 0]
+            best_hour_item = max(active_hours, key=lambda x: x["revenue"])
+            insight_tips = f"🔥 今日黃金爆發期在 {best_hour_item['hour_str']} 區間，單小時狂捲 ${best_hour_item['revenue']} 元！媽媽這段時間可以多蒸幾籠喔！"
+        else:
+            insight_tips = "✨ 開攤準備中！前台收到非作廢的有效訂單後，大腦將即時動態繪製客流時段。"
+            
+        return {"success": True, "best_hour_insight": insight_tips, "data": final_list}
+    except Exception as e:
+        return {"success": False, "error": f"時段分析失敗: {str(e)}"}

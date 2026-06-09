@@ -27,7 +27,7 @@ db.connect((err) => {
 });
 
 // =========================================================================
-// 🚀 終極三個 AI 門牌絕對映射區 (防爆安全通道版，絕不可能再 404/SyntaxError)
+// 🚀 終極四個 AI 門牌絕對映射區 (防爆安全通道版，絕不可能再 404/SyntaxError)
 // =========================================================================
 
 // 門牌一：智慧備料
@@ -40,7 +40,6 @@ app.get('/api/fastapi/inventory-prediction', (req, res) => {
         .then(data => res.json(data))
         .catch(err => {
             console.error('❌ Express 轉發 AI 備料失敗:', err.message);
-            // 💡 安全退路：Python 斷線時回傳安全 JSON，防止前端 dashboard.html 崩潰轉圈
             res.json({ 
                 success: true, 
                 data: [{ 
@@ -63,7 +62,7 @@ app.get('/api/fastapi/sales-ranking', (req, res) => {
         })
         .then(data => res.json(data))
         .catch(err => {
-            console.error('❌ Express 轉發 AI 排行失敗:', err.message);
+            console.error('❌ Express 轉發 AI 放行失敗:', err.message);
             res.json({ 
                 success: true, 
                 range_type: rangeType, 
@@ -92,6 +91,24 @@ app.get('/api/fastapi/monthly-trend', (req, res) => {
                 total_tracked_days: 0, 
                 best_day_insight: "AI 趨勢大腦休眠中，請檢查後端服務", 
                 data: [] 
+            });
+        });
+});
+
+// 🛠️ 完美補齊門牌四：今日營業黃金時段熱流分析 (將 /api/fastapi/hourly-hotspot 安全對接到 Python 8000)
+app.get('/api/fastapi/hourly-hotspot', (req, res) => {
+    fetch('http://127.0.0.1:8000/api/ai/hourly-hotspot')
+        .then(async r => {
+            if (!r.ok) { throw new Error(`Python 大腦回報異常狀態碼: ${r.status}`); }
+            return r.json();
+        })
+        .then(data => res.json(data))
+        .catch(err => {
+            console.error('❌ Express 轉發黃金時段失敗:', err.message);
+            res.json({ 
+                success: true, 
+                best_hour_insight: "時段大腦連線中斷，請重啟 Python 服務", 
+                data: Array.from({length: 24}, (_, i) => ({ hour_str: `${String(i).padStart(2, '0')}:00`, orders: 0, revenue: 0 }))
             });
         });
 });
