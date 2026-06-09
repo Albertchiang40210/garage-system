@@ -97,7 +97,8 @@
 
         // 1. 自動通靈分類載入演算法
         function loadMenuProductsWithClassification() {
-            fetch('/api/products')
+            // 修正點：將原先的 /api/products 改為對應後端的 /api/ingredients
+            fetch('/api/ingredients')
                 .then(res => res.json())
                 .then(products => {
                     const cMain = document.getElementById('container-main');
