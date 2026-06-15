@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # 1. 小籠包資料庫 (Port: 3309)
+  garage_db:
+    image: mysql:8.0
+    container_name: garage_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: P@ssw0rd
+      MYSQL_DATABASE: garage_xlb
+    ports:
+      - "3309:3306"
+    volumes:
+      - garage_db_data:/var/lib/mysql
+
+  # 2. Python FastAPI 後端 (Port: 8002)
+  garage_backend:
+    build: .
+    container_name: garage_api_service
+    restart: always
+    ports:
+      - "8002:8000"
+    environment:
+      - DB_HOST=garage_db
+    depends_on:
+      - garage_db
+
+  # 3. Node.js 前端網頁 (Port: 3002)
+  garage_frontend:
+    image: node:18-slim
+    container_name: garage_web_service
+    restart: always
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "3002:3000"
+    command: sh -c "npm install && node server.js"
+    depends_on:
+      - garage_backend
+
+volumes:
+  garage_db_data:

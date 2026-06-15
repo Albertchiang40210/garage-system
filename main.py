@@ -1,7 +1,11 @@
+import os  # 🟢 智慧型環境變數支援
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, date
 import mysql.connector
+
+# 🟢 自動判定：在 Docker 內就讀取變數（等於 garage_db），在 Mac 地端跑就自動退回 127.0.0.1
+db_host = os.getenv("DB_HOST", "127.0.0.1")
 
 app = FastAPI(
     title="🥟 車庫小籠包 AI 營收 analysis 大腦 3.0",
@@ -19,7 +23,7 @@ app.add_middleware(
 
 def get_db_connection():
     return mysql.connector.connect(
-        host="localhost",
+        host=db_host,         # 🟢 智慧型主機連線
         user="root",
         password="P@ssw0rd",  
         database="garage_xlb",
@@ -77,7 +81,6 @@ def get_inventory_prediction():
                 alert_level = "WARNING"
                 suggested_restock = int((avg_daily_sold * 1.2) + 5)
             
-            # 🛡️ 這裡已經修正！拔除手滑的 @ 符號
             if suggested_restock > 0:
                 suggested_restock = ((suggested_restock // 5) + 1) * 5
                 
