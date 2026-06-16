@@ -30,7 +30,7 @@ services:
   garage_frontend:
     image: node:18-slim
     container_name: garage_web_service
-    restart: always
+    restart: "no"
     working_dir: /app
     volumes:
       - .:/app
