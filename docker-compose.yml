@@ -18,7 +18,7 @@ services:
   garage_backend:
     build: .
     container_name: garage_api_service
-    restart: always
+    restart: "no"
     ports:
       - "8002:8000"
     environment:
