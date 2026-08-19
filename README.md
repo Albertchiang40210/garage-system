@@ -1,33 +1,40 @@
 # 🥟 小籠包 POS 2.0 後端大腦核心伺服器 (Garage Dimsum POS 2.0 Backend Core)
 
-本專案是一套專為餐飲門市量身打造的進階 **POS 2.0 後端營運管理系統**。核心基於 **Node.js (Express) 架構** 整合 **MySQL 關聯式資料庫**，專注於解決餐飲零售業最核心的「前台即時結帳」、「配方物料庫存自動連動扣減」以及「多維度營業數據雷達分析」等真實商業痛點。
+本專案是一套專為餐飲門市量身打造的進階 **POS 2.0 後端營運管理系統**。核心基於 **Node.js (Express) 架構** 整合 **MySQL 關聯式資料庫**，專注於解決餐飲零售業最核心的「前台即時結帳」、「庫存自動連動扣減」以及「多維度營業數據雷達分析」等真實商業痛點。
+
+經歷了全面的優化與重構，系統已升級至最終極的 **企業級安全與配方引擎版本**。
 
 ---
 
 ## 🛠️ 核心系統功能 (Core Features)
 
-### 1. 智慧型配方庫存連動引擎 (Recipe-Driven Inventory Deductions)
-* **前台結帳自動扣料 (`/api/sales`)**：前台完成結帳交易時，後端會動態解析銷售品項與數量，並透過 `JOIN recipes` 的多表關聯查詢，依據配方比例自動「動態扣除」19 種核心原物料（如麵粉、肉餡等）的實時庫存水位。
-* **反向交易防呆補回 (`/api/sales/:id/void`)**：當門市觸發「一鍵作廢銷售紀錄」時，後端實作嚴謹的交易反轉邏輯，自動計算該產品所消耗的原物料並「精準補回庫存」，確保帳目與實體物料的一致性。
-* **手動調整機制 (`/api/ingredients/:id/stock`)**：提供獨立的進貨與盤點調整接口，支援正負值輸入，維持庫存數據的靈活性。
+### 1. 真實配方物料管理引擎 (True BOM System)
+* **前台商品與後台庫存分離**：建立獨立的 `products` (前台商品) 與 `ingredients` (實體物料) 資料表。
+* **動態配方展開扣料 (`/api/sales`)**：導入 `recipes` 配方表。當前台賣出「一籠小籠包」時，伺服器會自動展開配方，精準扣除對應的「150g 麵粉 + 100g 豬肉」。
+* **反向交易防呆補回 (`/api/sales/:id/void`)**：當門市觸發「一鍵作廢銷售紀錄」時，系統反向展開配方，將消耗的物料一克不少地補回庫存。
+* **資料庫交易安全 (Database Transactions)**：全面導入 `BEGIN`, `COMMIT`, `ROLLBACK`，確保營收紀錄與庫存扣除的資料強一致性，徹底解決連線中斷導致的帳務異常。
 
-### 2. 進階營業數據雷達分析 (Advanced Sales & Product Analytics)
-* **小籠包總顆數精準全加總演算法**：針對主打商品「小籠包」實作特化邏輯，能自動判別前台傳入的計量單位（如自動將銷售單位「盤」精準換算為 10 顆小籠包），產出具備直觀商業價值的統計文本（例：`約等於 X 盤 Y 顆`）。
-* **多維度時間動態過濾**：支援日報表（`CURDATE()`）、月報表（`YEAR/MONTH`）及年報表的動態 SQL 條件切換，自動過濾已作廢（`VOID`）的異常數據。
-* **產品線營收佔比與標籤自動分類**：
-  * 後端自動計算單一品項在該分類的營收佔比（Line Share）以及全店營收佔比（Store Share）。
-  * 內建商業分析邏輯，自動為產品貼上標籤：佔比達 40% 以上自動歸類為 `🔥 主力爆款`；佔比低於 5% 則警示 `⚠️ 考慮調整`，直接輔助決策者進行菜單優化。
+### 2. 廚房即時出餐系統 (Kitchen Display System - KDS)
+* **即時連線看板 (`/kds.html`)**：前台一點餐，後廚即時顯示大字體深色模式的訂單卡片。
+* **狀態與超時警示**：系統按訂單 `order_id` 分組。具有等候時間追蹤，超過 5 分鐘顯示橘燈警告，超過 15 分鐘顯示紅燈超時警報。
+* **一鍵出餐消單**：廚房一鍵標記出餐，確保不漏單。
 
-### 3. 多層級內外自動防護與靜態通道
-* 實作動態路由防護，提供原物料庫存後台、數據儀表板的專屬靜態路徑導向，具備高容錯率的檔案路徑通靈校正機制。
+### 3. 員工登入與安全防護 (Auth & Roles)
+* **JWT Token 登入防護 (`/api/login`)**：導入基於記憶體的 JWT 簡易認證機制，保護敏感路由。
+* **權限隔離**：前台點餐系統免登入即可快速操作；後台「庫存中控台」與「營運報表大腦」必須透過 `/login.html` 登入驗證後才能訪問。
+
+### 4. 進階營業數據雷達分析 (Advanced Sales & Product Analytics)
+* **單一 Node.js 大腦整合**：原先的 Python/FastAPI AI 分析邏輯已 100% 完美移植合併至 Node.js 核心中，實現單一伺服器高效運行。
+* **多維度時間動態過濾**：支援日報表、月報表及年報表的動態切換，自動繪製黃金營業時段與客流熱點。
 
 ---
 
 ## 💻 技術棧 (Tech Stack)
 
-* **後端核心：** Node.js / Express 框架 (RESTful API 設計、多維度參數配置管理)
-* **資料庫管理：** MySQL (使用 `mysql2` 驅動，實作多表關聯查詢、聚合函數 `SUM`、時間函數 `YEAR/MONTH/CURDATE` 運用)
-* **商業邏輯優化：** 後端資料結構重組（Data Restructuring），將資料庫原始橫向數據流（Raw Logs）在後端重新分類、美化，封裝為高 Scannability（易讀性）的階層式 JSON 報表。
+* **後端核心：** Node.js / Express 框架 (RESTful API 設計、JWT Auth、BOM 邏輯)
+* **資料庫管理：** MySQL (使用 `mysql2` 驅動，實作 Transaction 交易安全與聚合查詢)
+* **前端架構：** Vanilla JS + TailwindCSS (純前端渲染，無須建置)
+* **部署：** Docker & docker-compose (附帶遷移腳本 `migrate.js`)
 
 ---
 
@@ -35,16 +42,27 @@
 
 | 請求方法 | 路由 (Route) | 功能說明 | 核心實作技術 |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/ingredients` | 撈取精簡後的 19 種核心核心物料清單 | 資料庫排序與邊緣水位監控 |
-| **PUT** | `/api/ingredients/:id/stock`| 手動調整原物料庫存 (進貨與盤點) | 原子化資料更新 (`stock_qty = stock_qty + ?`) |
-| **GET** | `/api/reports/category-radar`| 產品線營收佔比與小籠包總數雷達分析| `JOIN` 多表聚合、營收比重動態計算與標籤分類 |
-| **GET** | `/api/reports/today-raw-logs`| 提取今日即時原始營收流水帳 | `CURDATE()` 時間過濾與倒序排列 |
-| **PUT** | `/api/sales/:id/void` | 一鍵作廢銷售紀錄 (連動配方補回庫存) | 巢狀控制流、跨表原物料自動還原演算法 |
-| **POST** | `/api/sales` | 前台結帳接收 (整單營收寫入＋自動扣料) | 批次插入 (`INSERT INTO ... VALUES ?`) 與連動扣料 |
-| **GET** | `/api/products` | 提取完整餐點商品品項與價格清單 | 關聯基礎資料查詢 |
+| **POST** | `/api/login` | 員工登入獲取 Token | JWT & `users` 驗證 |
+| **POST** | `/api/sales` | 前台結帳 | BOM 配方展開 + Transaction 批次扣料 |
+| **PUT** | `/api/sales/:id/void` | 作廢銷售紀錄 (需 Auth) | 配方反推補回 + Transaction 交易防呆 |
+| **GET** | `/api/kds/orders` | 獲取待出餐訂單 | 分組 `order_id` 查詢 |
+| **PUT** | `/api/kds/orders/:order_id/complete`| 標記訂單完成 | 更新 `kitchen_status` 狀態 |
+| **PUT** | `/api/ingredients/:id/stock`| 手動調整庫存 (需 Auth) | 原子化庫存更新 |
+| **GET** | `/api/fastapi/sales-ranking`| 熱銷排行分析 | 多表聚合、營收比重動態計算 |
+| **GET** | `/api/fastapi/hourly-hotspot`| 營業黃金時段分析 | 時間聚合與動態客流分析 |
+
+---
+
+## 🚀 專案啟動方式 (How to Run)
+
+1. 確保已安裝 Node.js 與 MySQL。
+2. 啟動資料庫並確保設定正確 (預設 `root` / `P@ssw0rd`)。
+3. 執行資料庫遷移升級腳本以建立最新表結構：`node migrate.js` 及 `node migrate_p3.js`。
+4. 啟動伺服器：`node server.js`。
+5. 開啟瀏覽器訪問 `http://localhost:3000`。
 
 ---
 
 ## ⚠️ 安全與版本控制規範 (Disclaimer)
-* 本公開倉庫已**完整抽離所有真實生產環境之資料庫敏感憑證與密碼**（相關欄位均替換為安全的 `YOUR_DATABASE_PASSWORD` 範本）。
-* 已透過 `.gitignore` 配置過濾本機套件（`node_modules/`）與系統日誌（`*.log`），符合企業級安全與輕量化審查規範。
+* 本公開倉庫已完整抽離所有真實生產環境之資料庫敏感憑證與密碼。
+* 正式上線時，登入憑證與 JWT 密鑰請務必使用 `process.env` 管理並妥善加密。

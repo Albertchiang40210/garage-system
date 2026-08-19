@@ -52,8 +52,13 @@
 
     </main>
 
-    <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('garage_token');
+            if (!token) {
+                alert("請先登入！");
+                window.location.href = '/login.html';
+                return;
+            }
             loadIngredientStock(); // 網頁開啟自動載入一次
         });
 
@@ -119,21 +124,33 @@
         }
 
         function quickRefill(id, qty) {
+            const token = localStorage.getItem('garage_token');
             fetch(`/api/ingredients/${id}/stock`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
                 body: JSON.stringify({ adjust_qty: qty })
-            }).then(() => loadIngredientStock());
+            })
+            .then(res => { if(res.status===401) { alert("登入已過期"); window.location.href='/login.html'; } else return res.json(); })
+            .then(() => loadIngredientStock());
         }
 
         function customRefill(id, name) {
             const val = prompt(`📦 [${name}] 進貨/手動盤點校正：\n\n請輸入要「追加或減少」的庫存數量：\n（進貨增加請直接輸入正數如：20，少貨盤點請輸入負數如：-5）`);
             if (val === null || isNaN(Number(val))) return;
+            const token = localStorage.getItem('garage_token');
             fetch(`/api/ingredients/${id}/stock`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
                 body: JSON.stringify({ adjust_qty: Number(val) })
-            }).then(() => loadIngredientStock());
+            })
+            .then(res => { if(res.status===401) { alert("登入已過期"); window.location.href='/login.html'; } else return res.json(); })
+            .then(() => loadIngredientStock());
         }
     </script>
 </body>

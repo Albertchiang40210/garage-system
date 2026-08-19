@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>車庫小籠包 - 廚房出餐看板 (KDS)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .blink {
+            animation: blinker 2s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-zinc-900 min-h-screen text-slate-100 font-sans antialiased">
+    <header class="bg-zinc-950 border-b border-zinc-800 text-white shadow-xl sticky top-0 z-50">
+        <div class="px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">👨‍🍳</span>
+                <h1 class="text-xl font-black tracking-wider text-orange-500">廚房出餐看板 (KDS)</h1>
+                <span id="connection-status" class="text-xs px-2 py-1 bg-green-900 text-green-300 rounded-full blink">即時連線中</span>
+            </div>
+            <div class="text-sm font-bold text-zinc-400" id="clock">00:00:00</div>
+        </div>
+    </header>
+
+    <main class="p-6">
+        <div id="kds-container" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <!-- Orders will be injected here -->
+        </div>
+    </main>
+
+    <script>
+        function updateClock() {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function fetchOrders() {
+            fetch('/api/kds/orders')
+                .then(res => res.json())
+                .then(orders => {
+                    const container = document.getElementById('kds-container');
+                    container.innerHTML = '';
+                    
+                    if (orders.length === 0) {
+                        container.innerHTML = '<div class="col-span-full text-center py-20 text-zinc-600 text-lg font-bold">🎉 目前沒有待處理訂單，稍微休息一下！</div>';
+                        return;
+                    }
+
+                    orders.forEach(order => {
+                        const waitTimeMs = Date.now() - new Date(order.time).getTime();
+                        const waitMinutes = Math.floor(waitTimeMs / 60000);
+                        
+                        let headerBg = 'bg-zinc-800';
+                        if (waitMinutes > 15) headerBg = 'bg-red-900'; // 超時警告
+                        else if (waitMinutes > 5) headerBg = 'bg-orange-800';
+                        
+                        const div = document.createElement('div');
+                        div.className = "bg-zinc-800 rounded-xl overflow-hidden shadow-xl border border-zinc-700 flex flex-col h-full";
+                        
+                        let itemsHtml = order.items.map(item => `
+                            <div class="flex justify-between items-center py-2 border-b border-zinc-700/50 last:border-0">
+                                <span class="text-lg font-bold">${item.name}</span>
+                                <span class="text-xl font-black text-orange-400">x${item.qty}</span>
+                            </div>
+                        `).join('');
+
+                        div.innerHTML = `
+                            <div class="${headerBg} px-4 py-3 flex justify-between items-center">
+                                <span class="text-xl font-black">${order.order_id}</span>
+                                <span class="text-sm font-bold text-zinc-300">等候 ${waitMinutes} 分</span>
+                            </div>
+                            <div class="p-4 flex-grow space-y-1">
+                                ${itemsHtml}
+                            </div>
+                            <div class="p-3 bg-zinc-800/80 mt-auto border-t border-zinc-700">
+                                <button onclick="completeOrder('${order.order_id}')" class="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-black text-lg rounded-lg transition-colors shadow-lg cursor-pointer">
+                                    ✅ 標記出餐
+                                </button>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                })
+                .catch(err => console.error("Fetch orders failed:", err));
+        }
+
+        function completeOrder(orderId) {
+            fetch(`/api/kds/orders/${orderId}/complete`, { method: 'PUT' })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.success) fetchOrders();
+                });
+        }
+
+        // Auto refresh every 3 seconds
+        setInterval(fetchOrders, 3000);
+        fetchOrders();
+    </script>
+</body>
+</html>

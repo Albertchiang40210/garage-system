@@ -22,7 +22,7 @@ services:
     ports:
       - "8002:8000"
     environment:
-      - DB_HOST=garage_db
+      DB_HOST: garage_db  # 修正為與資料庫一致的鍵值對格式，更安全穩定
     depends_on:
       - garage_db
 

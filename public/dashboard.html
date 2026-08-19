@@ -167,6 +167,12 @@
         const FASTAPI_URL = '/api/fastapi';
 
         document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('garage_token');
+            if (!token) {
+                alert("請先登入！");
+                window.location.href = '/login.html';
+                return;
+            }
             loadPriceManagement();
             loadTodayRawLogs();
             loadAiInsights();
@@ -220,15 +226,19 @@
         function updatePrice(id, name) {
             const newPrice = parseInt(document.getElementById(`price-input-${id}`).value);
             if (isNaN(newPrice) || newPrice < 0) return;
+            const token = localStorage.getItem('garage_token');
 
             fetch(`${EXPRESS_URL}/api/products/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
                 body: JSON.stringify({ price: newPrice })
             })
-            .then(res => res.json())
+            .then(res => { if(res.status===401) { alert("登入已過期"); window.location.href='/login.html'; } else return res.json(); })
             .then(data => {
-                if (data.success) {
+                if (data && data.success) {
                     alert(`🎉 ${name} 單價已改為 $${newPrice} 元！`);
                     loadPriceManagement();
                     loadHourlyHotspot(); 
@@ -271,10 +281,14 @@
 
         function voidSale(id) {
             if (!confirm("⚠️ 確定要作廢這筆紀錄並回補庫存嗎？")) return;
-            fetch(`${EXPRESS_URL}/api/sales/${id}/void`, { method: 'PUT' })
-                .then(res => res.json())
+            const token = localStorage.getItem('garage_token');
+            fetch(`${EXPRESS_URL}/api/sales/${id}/void`, { 
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + token }
+            })
+                .then(res => { if(res.status===401) { alert("登入已過期"); window.location.href='/login.html'; } else return res.json(); })
                 .then(data => {
-                    if (data.success) {
+                    if (data && data.success) {
                         loadTodayRawLogs();
                         loadHourlyHotspot(); 
                         loadRanking('all');
